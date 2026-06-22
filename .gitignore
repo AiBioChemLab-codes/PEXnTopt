@@ -1,0 +1,14 @@
+# 忽略整个 esm2_model 文件夹（无论里面有什么）
+esm2_model/
+
+# 如果 esm2_model 已经提交过，需要先清除缓存
+# git rm -r --cached esm2_model
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,17 @@
+torch==2.7.1+cu118
+torchvision==0.22.1+cu118
+torchaudio==2.7.1+cu118
+transformers==5.12.1
+accelerate==1.14.0
+safetensors==0.8.0
+tokenizers==0.22.2
+huggingface-hub==1.20.0
+biopython==1.83
+numpy==2.2.6
+pandas==2.3.3
+joblib==1.5.3
+xgboost==3.2.0
+scikit-learn==1.7.2
+tqdm==4.68.3
+hyperopt==0.2.7
+scipy==1.15.3
