@@ -6,18 +6,18 @@ import pandas as pd
 import joblib
 
 from esm_encoder import extract_esm_features
-from XGB_reg import predict_with_model
-from regVoting_nXGB_sk import VotingXGBRegressor
+from pex1_regressor import predict_with_model
+from pex3_voting import VotingXGBRegressor
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(ROOT, "PEXn_model")
-TARGETS = ["opt", "tm", "ph"]
+TARGETS = ["Topt", "Tm", "pH"]
 
 PEX1_FILES = {
-    t: (f"pex1_{t}.model.joblib", f"pex1_{t}.scaler.joblib") for t in TARGETS
+    t: (f"PEX1_{t}.model.joblib", f"PEX1_{t}.scaler.joblib") for t in TARGETS
 }
 PEX3_FILES = {
-    t: (f"pex3_{t}.model.joblib", f"pex3_{t}.scaler.joblib") for t in TARGETS
+    t: (f"PEX3_{t}.model.joblib", f"PEX3_{t}.scaler.joblib") for t in TARGETS
 }
 
 
@@ -47,8 +47,8 @@ def main():
     feats, ids = extract_esm_features(args.fasta, args.batch_size, args.max_len)
 
     print("\n[2/3] loading models")
-    print("  [PEX1] single XGBoost (via XGB_reg)")
-    print("  [PEX3] voting XGBoost (via regVoting_nXGB_sk)")
+    print("  [PEX1] single XGBoost (via pex1_regressor)")
+    print("  [PEX3] voting XGBoost (via pex3_voting)")
     m3, s3 = load_pex3_group()
 
     print("\n[3/3] predicting")
@@ -56,9 +56,9 @@ def main():
     for t in TARGETS:
         mp = os.path.join(MODEL_DIR, PEX1_FILES[t][0])
         sp = os.path.join(MODEL_DIR, PEX1_FILES[t][1])
-        res[f"PEX1_{t}"] = np.round(predict_with_model(mp, sp, feats), 4)
+        res[f"PEX1{t}"] = np.round(predict_with_model(mp, sp, feats), 4)
         X = s3[t].transform(feats)
-        res[f"PEX3_{t}"] = np.round(m3[t].predict(X), 4)
+        res[f"PEX3{t}"] = np.round(m3[t].predict(X), 4)
 
     df = pd.DataFrame(res)
     df.to_csv(args.output, index=False, encoding="utf-8-sig")

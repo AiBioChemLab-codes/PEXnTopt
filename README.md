@@ -40,7 +40,7 @@ Example:
 python pipeline.py --fasta test.fasta --output predictions.csv
 ```
 
-Output columns: `PEX1_opt`, `PEX1_tm`, `PEX1_ph`, `PEX3_opt`, `PEX3_tm`, `PEX3_ph`.
+Output columns: `PEX1Topt`, `PEX1Tm`, `PEX1pH`, `PEX3Topt`, `PEX3Tm`, `PEX3pH`.
 
 ## Notes
 
