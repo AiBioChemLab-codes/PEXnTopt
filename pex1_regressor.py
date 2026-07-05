@@ -59,21 +59,21 @@ class XGBoostRegressor:  # remove GPU identifier from class name
         )
         self.logger = logging.getLogger(__name__)
         self.start_time = time.time()
-        self.logger.info(f"项目初始化完成: {self.project_name}")
-        self.logger.info(f"XGBoost版本: {xgb.__version__}")
+        self.logger.info(f"Project initialized: {self.project_name}")
+        self.logger.info(f"XGBoost version: {xgb.__version__}")
     
     def load_data(self, train_file, test_file):
         """Load training and test data"""
-        self.logger.info("开始加载数据...")
+        self.logger.info("Loading data...")
         
         try:
             # Read training set
             train_df = pd.read_csv(train_file)
-            self.logger.info(f"训练集大小: {train_df.shape}")
+            self.logger.info(f"Train set size: {train_df.shape}")
             
             # Read test set
             test_df = pd.read_csv(test_file)
-            self.logger.info(f"测试集大小: {test_df.shape}")
+            self.logger.info(f"Test set size: {test_df.shape}")
             
             # Extract features and target
             self.X_train = train_df.iloc[:, 2:].values.astype(np.float32)
@@ -88,39 +88,39 @@ class XGBoostRegressor:  # remove GPU identifier from class name
             # Check data quality
             self._check_data_quality()
             
-            self.logger.info("数据加载完成")
+            self.logger.info("Data loading complete")
         except Exception as e:
-            self.logger.error(f"数据加载失败: {str(e)}")
+            self.logger.error(f"Data loading failed: {str(e)}")
             raise
     
     def _check_data_quality(self):
         """Check data quality"""
-        self.logger.info("检查数据质量...")
+        self.logger.info("Checking data quality...")
         
         # Check NaN values
         if np.isnan(self.X_train).any() or np.isnan(self.X_test).any():
-            self.logger.warning("数据中存在NaN值，进行填充处理")
+            self.logger.warning("NaN values detected, filling")
             self.X_train = np.nan_to_num(self.X_train)
             self.X_test = np.nan_to_num(self.X_test)
         
         # Check infinite values
         if np.isinf(self.X_train).any() or np.isinf(self.X_test).any():
-            self.logger.warning("数据中存在无穷值，进行替换处理")
+            self.logger.warning("Infinite values detected, replacing")
             self.X_train = np.where(np.isinf(self.X_train), 0, self.X_train)
             self.X_test = np.where(np.isinf(self.X_test), 0, self.X_test)
         
         # Check target range
-        self.logger.info(f"训练集回归值范围: [{self.y_train.min():.6f}, {self.y_train.max():.6f}]")
-        self.logger.info(f"测试集回归值范围: [{self.y_test.min():.6f}, {self.y_test.max():.6f}]")
+        self.logger.info(f"Train target range: [{self.y_train.min():.6f}, {self.y_train.max():.6f}]")
+        self.logger.info(f"Test target range: [{self.y_test.min():.6f}, {self.y_test.max():.6f}]")
         
         # Check feature scale differences
         feature_ranges = np.ptp(self.X_train, axis=0)
         if np.max(feature_ranges) / np.min(feature_ranges[feature_ranges > 0]) > 1000:
-            self.logger.warning("特征尺度差异较大，标准化处理很重要")
+            self.logger.warning("Feature scales vary greatly, standardization is important")
     
     def standardize_data(self):
         """Standardize data"""
-        self.logger.info("开始数据标准化...")
+        self.logger.info("Starting data standardization...")
         
         try:
             self.scaler = StandardScaler()
@@ -133,9 +133,9 @@ class XGBoostRegressor:  # remove GPU identifier from class name
                 f"{self.output_prefix}_scaler.joblib"
             )
             joblib.dump(self.scaler, scaler_file)
-            self.logger.info(f"标准化模型已保存: {scaler_file}")
+            self.logger.info(f"Scaler saved: {scaler_file}")
         except Exception as e:
-            self.logger.error(f"数据标准化失败: {str(e)}")
+            self.logger.error(f"Data standardization failed: {str(e)}")
             raise
     
     def calculate_adjusted_r2(self, r2, n_samples, n_features):
@@ -184,7 +184,7 @@ class XGBoostRegressor:  # remove GPU identifier from class name
             
             return formatted_metrics
         except Exception as e:
-            self.logger.error(f"计算{dataset_type}指标时出错: {str(e)}")
+            self.logger.error(f"Error calculating {dataset_type} metrics: {str(e)}")
             return {key: 0.0 for key in [
                 'mse', 'rmse', 'mae', 'r2', 'adjusted_r2', 'pearson_corr', 'spearman_corr'
             ]}
@@ -200,7 +200,7 @@ class XGBoostRegressor:  # remove GPU identifier from class name
                     model.fit(X, y, verbose=False)
                 return model
             except Exception as e:
-                self.logger.warning(f"XGBoost训练尝试 {attempt + 1}/{max_attempts} 失败: {str(e)}")
+                self.logger.warning(f"XGBoost training attempt {attempt + 1}/{max_attempts} failed: {str(e)}")
                 if attempt < max_attempts - 1:
                     time.sleep(1)
                 else:
@@ -226,7 +226,7 @@ class XGBoostRegressor:  # remove GPU identifier from class name
                 'random_state': 42
             }
             
-            self.logger.info(f"训练模型，参数: n_estimators={xgb_params['n_estimators']}, max_depth={xgb_params['max_depth']}, learning_rate={xgb_params['learning_rate']:.6f}")
+            self.logger.info(f"Training model, params: n_estimators={xgb_params['n_estimators']}, max_depth={xgb_params['max_depth']}, learning_rate={xgb_params['learning_rate']:.6f}")
             
             # Train XGBoost model
             xgb_model = xgb.XGBRegressor(**xgb_params)
@@ -259,18 +259,18 @@ class XGBoostRegressor:  # remove GPU identifier from class name
             
             self.hyperopt_results.append(result)
             
-            self.logger.info(f"模型训练完成，RMSE: {test_metrics['rmse']:.6f}, R²: {test_metrics['r2']:.6f}, 耗时: {result['training_time']:.2f}秒")
+            self.logger.info(f"Training complete, RMSE: {test_metrics['rmse']:.6f}, R²: {test_metrics['r2']:.6f}, time: {result['training_time']:.2f}s")
             
             # Hyperopt minimizes, so return negative composite score
             return {'loss': -composite_score, 'status': STATUS_OK}
             
         except Exception as e:
-            self.logger.error(f"目标函数执行出错: {str(e)}")
+            self.logger.error(f"Objective function error: {str(e)}")
             return {'loss': 1.0, 'status': STATUS_FAIL}
     
     def hyperparameter_optimization(self, max_evals=100):
         """Run hyperparameter optimization"""
-        self.logger.info("开始超参数优化...")
+        self.logger.info("Starting hyperparameter optimization...")
         self.hyperopt_results = []
         
         # Define XGBoost search space
@@ -298,12 +298,12 @@ class XGBoostRegressor:  # remove GPU identifier from class name
             
             # Save hyperparameter optimization results
             self.save_hyperopt_results()
-            self.logger.info("超参数优化完成")
+            self.logger.info("Hyperparameter optimization complete")
             
             return best
         except Exception as e:
-            self.logger.error(f"超参数优化失败: {str(e)}")
-            self.logger.info("使用默认参数继续流程")
+            self.logger.error(f"Hyperparameter optimization failed: {str(e)}")
+            self.logger.info("Continuing with default parameters")
             self.hyperopt_results = [{
                 'params': {
                     'n_estimators': 100,
@@ -336,7 +336,7 @@ class XGBoostRegressor:  # remove GPU identifier from class name
     def save_hyperopt_results(self):
         """Save hyperparameter optimization results"""
         if not self.hyperopt_results:
-            self.logger.warning("没有超参数优化结果可保存")
+            self.logger.warning("No hyperparameter optimization results to save")
             return
             
         results_df = pd.DataFrame([{
@@ -352,13 +352,13 @@ class XGBoostRegressor:  # remove GPU identifier from class name
             f"{self.output_prefix}_hyperopt_results.csv"
         )
         results_df.to_csv(results_file, index=False)
-        self.logger.info(f"超参数优化结果已保存: {results_file}")
+        self.logger.info(f"Hyperparameter results saved: {results_file}")
     
     def find_best_model(self):
         """Find the best model"""
         if not self.hyperopt_results:
-            self.logger.error("没有可用的超参数优化结果")
-            raise ValueError("没有可用的超参数优化结果")
+            self.logger.error("No hyperparameter optimization results available")
+            raise ValueError("No hyperparameter optimization results available")
             
         # Select model with smallest RMSE and largest R2 & adjusted R2
         best_result = min(self.hyperopt_results, 
@@ -369,8 +369,8 @@ class XGBoostRegressor:  # remove GPU identifier from class name
         self.best_params = best_result['params']
         self.best_test_metrics = best_result['test_metrics']
         
-        self.logger.info(f"最优参数: n_estimators={self.best_params['n_estimators']}, max_depth={self.best_params['max_depth']}, learning_rate={self.best_params['learning_rate']:.6f}")
-        self.logger.info(f"最优指标 - RMSE: {self.best_test_metrics['rmse']:.6f}, R²: {self.best_test_metrics['r2']:.6f}, Adjusted R²: {self.best_test_metrics['adjusted_r2']:.6f}")
+        self.logger.info(f"Best params: n_estimators={self.best_params['n_estimators']}, max_depth={self.best_params['max_depth']}, learning_rate={self.best_params['learning_rate']:.6f}")
+        self.logger.info(f"Best metrics - RMSE: {self.best_test_metrics['rmse']:.6f}, R²: {self.best_test_metrics['r2']:.6f}, Adjusted R²: {self.best_test_metrics['adjusted_r2']:.6f}")
         
         # Train final model
         xgb_params = {
@@ -407,17 +407,17 @@ class XGBoostRegressor:  # remove GPU identifier from class name
             )
             metrics_df.to_csv(metrics_file, index=False, float_format='%.6f')
             
-            self.logger.info(f"最优模型已保存: {model_file}")
+            self.logger.info(f"Best model saved: {model_file}")
         except Exception as e:
-            self.logger.error(f"最终模型训练失败: {str(e)}")
+            self.logger.error(f"Final model training failed: {str(e)}")
             self.best_model = None
     
     def cross_validation(self):
         """Run K-fold cross-validation"""
-        self.logger.info("开始K折交叉验证...")
+        self.logger.info("Starting K-fold cross-validation...")
         
         if self.best_params is None:
-            self.logger.error("没有找到最优参数，无法进行交叉验证")
+            self.logger.error("No best parameters found, cannot perform cross-validation")
             return None
             
         cv_results = []
@@ -472,14 +472,14 @@ class XGBoostRegressor:  # remove GPU identifier from class name
                     'training_time': time.time() - fold_start_time
                 })
                 
-                self.logger.info(f"第{fold + 1}折完成, 验证集RMSE: {val_metrics['rmse']:.6f}, 测试集RMSE: {test_metrics['rmse']:.6f}")
+                self.logger.info(f"Fold {fold + 1} done, val RMSE: {val_metrics['rmse']:.6f}, test RMSE: {test_metrics['rmse']:.6f}")
                 
             except Exception as e:
-                self.logger.error(f"第{fold + 1}折交叉验证失败: {str(e)}")
+                self.logger.error(f"Fold {fold + 1} cross-validation failed: {str(e)}")
                 continue
         
         if not cv_results:
-            self.logger.error("所有交叉验证折都失败了")
+            self.logger.error("All cross-validation folds failed")
             return None
             
         # Save cross-validation results
@@ -502,13 +502,13 @@ class XGBoostRegressor:  # remove GPU identifier from class name
         )
         pd.DataFrame([mean_metrics]).to_csv(mean_metrics_file, index=False, float_format='%.6f')
         
-        self.logger.info("K折交叉验证完成")
+        self.logger.info("K-fold cross-validation complete")
         return cv_df
     
     def run_pipeline(self, train_file, test_file, max_evals=100):
         """Run full pipeline"""
         try:
-            self.logger.info("开始执行完整流程...")
+            self.logger.info("Starting full pipeline...")
             
             # Execute each step
             self.load_data(train_file, test_file)
@@ -523,13 +523,13 @@ class XGBoostRegressor:  # remove GPU identifier from class name
             minutes = int((total_time % 3600) // 60)
             seconds = int(total_time % 60)
             
-            self.logger.info(f"项目执行完成！总耗时: {hours}小时{minutes}分钟{seconds}秒")
+            self.logger.info(f"Pipeline complete! Total time: {hours}h {minutes}m {seconds}s")
             
             # Output final result summary
             if hasattr(self, 'best_test_metrics'):
-                self.logger.info("最终结果摘要:")
-                self.logger.info(f"最优参数: n_estimators={self.best_params['n_estimators']}, max_depth={self.best_params['max_depth']}, learning_rate={self.best_params['learning_rate']:.6f}")
-                self.logger.info(f"独立测试集结果:")
+                self.logger.info("Final result summary:")
+                self.logger.info(f"Best params: n_estimators={self.best_params['n_estimators']}, max_depth={self.best_params['max_depth']}, learning_rate={self.best_params['learning_rate']:.6f}")
+                self.logger.info(f"Independent test set results:")
                 for metric, value in self.best_test_metrics.items():
                     self.logger.info(f"  {metric}: {value:.6f}")
             
@@ -541,9 +541,9 @@ class XGBoostRegressor:  # remove GPU identifier from class name
             }
             
         except Exception as e:
-            self.logger.error(f"流程执行出错: {str(e)}")
+            self.logger.error(f"Pipeline execution error: {str(e)}")
             if not hasattr(self, 'best_params'):
-                self.logger.info("使用默认参数创建模型")
+                self.logger.info("Creating model with default parameters")
                 self.best_params = {
                     'n_estimators': 100,
                     'max_depth': 6,
@@ -611,27 +611,27 @@ def main():
             minutes = int((total_time % 3600) // 60)
             seconds = int(total_time % 60)
             
-            print(f"\n项目完成！")
-            print(f"总耗时: {hours}小时{minutes}分钟{seconds}秒")
-            print(f"最优参数: n_estimators={results['best_params']['n_estimators']}, max_depth={results['best_params']['max_depth']}, learning_rate={results['best_params']['learning_rate']:.6f}")
+            print(f"\nPipeline complete!")
+            print(f"Total time: {hours}h {minutes}m {seconds}s")
+            print(f"Best params: n_estimators={results['best_params']['n_estimators']}, max_depth={results['best_params']['max_depth']}, learning_rate={results['best_params']['learning_rate']:.6f}")
             
             if results['best_metrics']:
-                print("独立测试集结果:")
+                print("Independent test set results:")
                 for metric, value in results['best_metrics'].items():
                     print(f"  {metric}: {value:.6f}")
             
             if results['cv_results'] is not None:
                 cv_means = results['cv_results'].mean(numeric_only=True)
-                print("交叉验证平均结果:")
+                print("Cross-validation average results:")
                 for col in results['cv_results'].columns:
                     if col.startswith('test_') and col != 'fold':
                         metric_name = col.replace('test_', '')
                         print(f"  {metric_name}: {cv_means[col]:.6f}")
         else:
-            print("项目完成，但存在一些问题，请检查日志")
+            print("Pipeline complete, but there were issues. Check logs.")
         
     except Exception as e:
-        print(f"项目执行失败: {str(e)}")
+        print(f"Pipeline execution failed: {str(e)}")
         return 1
         
     return 0
