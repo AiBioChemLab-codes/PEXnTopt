@@ -24,7 +24,7 @@ import joblib
 import multiprocessing
 import psutil
 
-# 设置日志
+# Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -36,22 +36,22 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class RegressionMetrics:
-    """回归模型评价指标计算器"""
+    """Regression metrics calculator"""
     
     @staticmethod
     def calculate_all_metrics(y_true, y_pred, n_features=None, n_samples=None):
-        """计算所有回归指标"""
+        """Calculate all regression metrics"""
         metrics = {}
         
-        # 均方误差
+        # Mean squared error
         mse = mean_squared_error(y_true, y_pred)
         metrics['mse'] = mse
         
-        # 均方根误差
+        # Root mean squared error
         rmse = np.sqrt(mse)
         metrics['rmse'] = rmse
         
-        # 平均绝对误差
+        # Mean absolute error
         mae = mean_absolute_error(y_true, y_pred)
         metrics['mae'] = mae
         
@@ -59,14 +59,14 @@ class RegressionMetrics:
         r2 = r2_score(y_true, y_pred)
         metrics['r2'] = r2
         
-        # 调整后的R²
+        # Adjusted R²
         if n_features is not None and n_samples is not None and n_samples > n_features + 1:
             adjusted_r2 = 1 - (1 - r2) * (n_samples - 1) / (n_samples - n_features - 1)
             metrics['adjusted_r2'] = adjusted_r2
         else:
             metrics['adjusted_r2'] = None
         
-        # 皮尔逊相关系数
+        # Pearson correlation coefficient
         try:
             pearson_corr, pearson_p = pearsonr(y_true, y_pred)
             metrics['pearson'] = pearson_corr
@@ -75,7 +75,7 @@ class RegressionMetrics:
             metrics['pearson'] = None
             metrics['pearson_p'] = None
         
-        # 斯皮尔曼相关系数
+        # Spearman correlation coefficient
         try:
             spearman_corr, spearman_p = spearmanr(y_true, y_pred)
             metrics['spearman'] = spearman_corr
@@ -88,14 +88,14 @@ class RegressionMetrics:
     
     @staticmethod
     def metrics_to_dataframe(metrics_dict):
-        """将指标字典转换为DataFrame"""
+        """Convert metrics dict to DataFrame"""
         df = pd.DataFrame([metrics_dict])
         return df
 
 class VotingXGBRegressor(BaseEstimator, RegressorMixin):
     """
-    基于多个XGBoost模型的投票回归器
-    每个XGBoost模型可以有不同的参数
+    Voting regressor based on multiple XGBoost models
+    Each XGBoost model can have different parameters
     """
     
     def __init__(self, 
@@ -129,13 +129,13 @@ class VotingXGBRegressor(BaseEstimator, RegressorMixin):
         self.random_state = random_state
         self.n_jobs = n_jobs
         
-        # 模型组件
+        # Model components
         self.models = []
         self.feature_names = None
         
     def fit(self, X, y):
-        """训练多个XGBoost模型"""
-        # 保存特征名称
+        """Train multiple XGBoost models"""
+        # Save feature names
         if hasattr(X, 'columns'):
             self.feature_names = X.columns.tolist()
         elif isinstance(X, pd.DataFrame):
@@ -144,14 +144,14 @@ class VotingXGBRegressor(BaseEstimator, RegressorMixin):
             n_features = X.shape[1] if hasattr(X, 'shape') else len(X[0])
             self.feature_names = [f'feature_{i}' for i in range(n_features)]
         
-        # 初始化模型列表
+        # Initialize model list
         self.models = []
         
-        # 训练每个模型
+        # Train each model
         for i in range(self.n_models):
             logger.info(f"训练第 {i+1}/{self.n_models} 个XGBoost模型...")
             
-            # 创建XGBoost模型
+            # Create XGBoost model
             model = xgb.XGBRegressor(
                 n_estimators=self.n_estimators_list[i],
                 max_depth=self.max_depth_list[i],
@@ -167,57 +167,57 @@ class VotingXGBRegressor(BaseEstimator, RegressorMixin):
                 n_jobs=self.n_jobs
             )
             
-            # 训练模型
+            # Train model
             model.fit(X, y)
             self.models.append(model)
         
         return self
     
     def predict(self, X):
-        """使用投票策略进行预测"""
+        """Predict using voting strategy"""
         if not self.models:
             raise ValueError("模型未训练")
         
-        # 获取每个模型的预测
+        # Get predictions from each model
         predictions = []
         for i, model in enumerate(self.models):
             pred = model.predict(X)
             predictions.append(pred)
         
-        # 转换为numpy数组
+        # Convert to numpy array
         pred_array = np.array(predictions)
         
-        # 根据投票策略组合预测结果
+        # Combine predictions based on voting strategy
         if self.voting_method == 'average':
-            # 平均投票
+            # Average voting
             if self.weights is not None and len(self.weights) == len(self.models):
-                # 加权平均
+                # Weighted average
                 weighted_sum = np.zeros_like(predictions[0])
                 for i, weight in enumerate(self.weights):
                     weighted_sum += predictions[i] * weight
                 return weighted_sum
             else:
-                # 简单平均
+                # Simple average
                 return np.mean(pred_array, axis=0)
                 
         elif self.voting_method == 'median':
-            # 中位数投票
+            # Median voting
             return np.median(pred_array, axis=0)
             
         elif self.voting_method == 'maximum':
-            # 最大值投票
+            # Maximum voting
             return np.max(pred_array, axis=0)
             
         elif self.voting_method == 'minimum':
-            # 最小值投票
+            # Minimum voting
             return np.min(pred_array, axis=0)
             
         else:
-            # 默认使用平均投票
+            # Default to average voting
             return np.mean(pred_array, axis=0)
     
     def get_params(self, deep=True):
-        """获取模型参数"""
+        """Get model parameters"""
         params = {
             'n_models': self.n_models,
             'n_estimators_list': self.n_estimators_list,
@@ -237,15 +237,15 @@ class VotingXGBRegressor(BaseEstimator, RegressorMixin):
         return params
     
     def set_params(self, **params):
-        """设置模型参数"""
+        """Set model parameters"""
         for key, value in params.items():
             setattr(self, key, value)
         return self
 
 class RegressionOptimizer:
     """
-    回归模型优化器
-    包含Hyperopt超参数优化、交叉验证等功能
+    Regression model optimizer
+    Includes Hyperopt hyperparameter optimization, cross-validation, etc.
     """
     
     def __init__(self, project_name, train_file, test_file, 
@@ -260,24 +260,24 @@ class RegressionOptimizer:
         self.cv_folds = cv_folds
         self.random_state = random_state
         self.max_threads_percent = max_threads_percent
-        self.n_models = min(max(2, n_models), 9)  # 限制在2-9之间
+        self.n_models = min(max(2, n_models), 9)  # limit to 2-9
         
-        # 计算可用的CPU线程数，不超过80%
+        # Calculate available CPU threads, limited to 80%
         self.total_cpus = os.cpu_count()
         self.available_cpus = max(1, int(self.total_cpus * self.max_threads_percent / 100))
         logger.info(f"系统CPU核心数: {self.total_cpus}")
         logger.info(f"使用线程数限制: {self.max_threads_percent}% = {self.available_cpus} 个核心")
         logger.info(f"使用XGBoost模型数量: {self.n_models} 个")
         
-        # 执行时间记录
+        # Execution time tracking
         self.start_time = None
         self.end_time = None
         self.total_time = None
         
-        # 创建目录结构
+        # Create directory structure
         self._create_directories()
         
-        # 数据
+        # Data
         self.X_train = None
         self.y_train = None
         self.X_test = None
@@ -287,17 +287,17 @@ class RegressionOptimizer:
         self.feature_scaler = None
         self.label_scaler = None
         
-        # 模型和结果
+        # Model and results
         self.best_model = None
         self.best_params = None
         self.best_score = None
         self.trials = None
         
-        # 日志文件
+        # Log file
         self._setup_logging()
     
     def _create_directories(self):
-        """创建目录结构"""
+        """Create directory structure"""
         self.base_dir = self.project_name
         self.dirs = {
             'base': self.base_dir,
@@ -314,42 +314,42 @@ class RegressionOptimizer:
             logger.info(f"创建目录: {dir_path}")
     
     def _setup_logging(self):
-        """设置日志"""
+        """Setup logging"""
         log_file = os.path.join(self.dirs['logs'], f"{self.model_name}_optimization.log")
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(logging.INFO)
         file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
         
-        # 清除之前的处理器，避免重复
+        # Clear previous handlers to avoid duplicates
         logger.handlers.clear()
         logger.addHandler(file_handler)
         logger.addHandler(logging.StreamHandler(sys.stdout))
     
     def load_data(self):
-        """加载数据"""
+        """Load data"""
         logger.info("开始加载数据...")
         
-        # 加载训练数据
+        # Load training data
         train_data = pd.read_csv(self.train_file)
         logger.info(f"训练集形状: {train_data.shape}")
         
-        # 检查数据格式
+        # Check data format
         if train_data.shape[1] < 3:
             raise ValueError("训练集至少需要3列: ID, 标签, 特征")
         
-        # 分离ID、标签和特征
+        # Separate ID, label and features
         self.train_ids = train_data.iloc[:, 0].values
         self.y_train = train_data.iloc[:, 1].values
         self.X_train = train_data.iloc[:, 2:].values
         
-        # 加载测试数据
+        # Load test data
         test_data = pd.read_csv(self.test_file)
         logger.info(f"测试集形状: {test_data.shape}")
         
         if test_data.shape[1] < 3:
             raise ValueError("测试集至少需要3列: ID, 标签, 特征")
         
-        # 分离ID、标签和特征
+        # Separate ID, label and features
         self.test_ids = test_data.iloc[:, 0].values
         self.y_test = test_data.iloc[:, 1].values
         self.X_test = test_data.iloc[:, 2:].values
@@ -360,27 +360,27 @@ class RegressionOptimizer:
         return self
     
     def preprocess_data(self, scale_features=True, scale_labels=False):
-        """数据预处理和标准化"""
+        """Preprocess and standardize data"""
         logger.info("开始数据预处理...")
         
         if scale_features:
-            # 特征标准化
+            # Feature standardization
             self.feature_scaler = StandardScaler()
             self.X_train = self.feature_scaler.fit_transform(self.X_train)
             self.X_test = self.feature_scaler.transform(self.X_test)
             
-            # 保存特征标准化模型
+            # Save feature scaler
             scaler_path = os.path.join(self.dirs['scaler'], 'feature_scaler.joblib')
             joblib.dump(self.feature_scaler, scaler_path)
             logger.info(f"特征标准化模型已保存到: {scaler_path}")
         
         if scale_labels:
-            # 标签标准化（可选）
+            # Label standardization (optional)
             self.label_scaler = StandardScaler()
             self.y_train = self.label_scaler.fit_transform(self.y_train.reshape(-1, 1)).ravel()
             self.y_test = self.label_scaler.transform(self.y_test.reshape(-1, 1)).ravel()
             
-            # 保存标签标准化模型
+            # Save label scaler
             scaler_path = os.path.join(self.dirs['scaler'], 'label_scaler.joblib')
             joblib.dump(self.label_scaler, scaler_path)
             logger.info(f"标签标准化模型已保存到: {scaler_path}")
@@ -389,15 +389,15 @@ class RegressionOptimizer:
         return self
     
     def _define_search_space(self):
-        """定义Hyperopt搜索空间 - 包含多个XGBoost模型的参数"""
+        """Define Hyperopt search space - parameters for multiple XGBoost models"""
         space = {
-            # 投票策略参数
+            # Voting strategy parameters
             'voting_method': hp.choice('voting_method', ['average', 'median']),
         }
         
-        # 为每个模型添加参数
+        # Add parameters for each model
         for i in range(self.n_models):
-            # XGBoost模型参数
+            # XGBoost model parameters
             space[f'n_estimators_{i}'] = scope.int(hp.quniform(f'n_estimators_{i}', 50, 2000, 10))
             space[f'max_depth_{i}'] = scope.int(hp.quniform(f'max_depth_{i}', 3, 12, 1))
             space[f'learning_rate_{i}'] = hp.loguniform(f'learning_rate_{i}', np.log(0.01), np.log(0.3))
@@ -408,18 +408,18 @@ class RegressionOptimizer:
             space[f'min_child_weight_{i}'] = hp.quniform(f'min_child_weight_{i}', 1, 10, 1)
             space[f'gamma_{i}'] = hp.uniform(f'gamma_{i}', 0, 5)
         
-        # 添加权重参数（只添加前n-1个权重，最后一个权重通过计算得到）
+        # Add weight parameters (only first n-1 weights, last weight is calculated)
         for i in range(self.n_models - 1):
             space[f'weight_{i}'] = hp.uniform(f'weight_{i}', 0, 1)
         
         return space
     
     def _objective(self, params):
-        """Hyperopt目标函数"""
+        """Hyperopt objective function"""
         try:
             start_time = time.time()
             
-            # 清理整数参数
+            # Clean integer parameters
             int_params = []
             for i in range(self.n_models):
                 int_params.extend([
@@ -430,7 +430,7 @@ class RegressionOptimizer:
                 if param in params:
                     params[param] = int(params[param])
             
-            # 提取模型参数
+            # Extract model parameters
             n_estimators_list = [params.get(f'n_estimators_{i}', 100) for i in range(self.n_models)]
             max_depth_list = [params.get(f'max_depth_{i}', 6) for i in range(self.n_models)]
             learning_rate_list = [params.get(f'learning_rate_{i}', 0.1) for i in range(self.n_models)]
@@ -441,16 +441,16 @@ class RegressionOptimizer:
             min_child_weight_list = [params.get(f'min_child_weight_{i}', 1) for i in range(self.n_models)]
             gamma_list = [params.get(f'gamma_{i}', 0) for i in range(self.n_models)]
             
-            # 计算权重
+            # Calculate weights
             weights = []
             if params.get('voting_method') == 'average':
-                # 提取前n-1个权重
+                # Extract first n-1 weights
                 weights = [params.get(f'weight_{i}', 1.0/self.n_models) for i in range(self.n_models - 1)]
                 
-                # 计算最后一个权重
+                # Calculate last weight
                 weight_sum = sum(weights)
                 if weight_sum > 1.0:
-                    # 如果权重和大于1，则进行归一化
+                    # If weight sum > 1, normalize
                     weights = [w / weight_sum for w in weights]
                     last_weight = 0
                 else:
@@ -458,7 +458,7 @@ class RegressionOptimizer:
                 
                 weights.append(last_weight)
             
-            # 创建投票模型
+            # Create voting model
             model = VotingXGBRegressor(
                 n_models=self.n_models,
                 n_estimators_list=n_estimators_list,
@@ -476,26 +476,26 @@ class RegressionOptimizer:
                 n_jobs=self.available_cpus
             )
             
-            # 训练模型
+            # Train model
             model.fit(self.X_train, self.y_train)
             
-            # 在测试集上预测
+            # Predict on test set
             y_pred = model.predict(self.X_test)
             
-            # 计算所有评价指标
+            # Calculate all evaluation metrics
             n_samples = len(self.y_test)
             n_features = self.X_train.shape[1]
             metrics = RegressionMetrics.calculate_all_metrics(
                 self.y_test, y_pred, n_features, n_samples
             )
             
-            # Hyperopt需要最小化目标函数，所以我们返回负的R²（最大化R²相当于最小化负R²）
+            # Hyperopt minimizes the objective, so return negative R² (maximizing R² = minimizing -R²)
             loss = -metrics['r2']
             
-            # 记录时间
+            # Record time
             train_time = time.time() - start_time
             
-            # 保存结果到CSV
+            # Save result to CSV
             result = {
                 'iteration': len(self.trials.trials) + 1,
                 'loss': loss,
@@ -504,7 +504,7 @@ class RegressionOptimizer:
                 'metrics': metrics
             }
             
-            # 保存到文件
+            # Save to file
             self._save_hyperopt_result(result)
             
             logger.info(f"Iteration {result['iteration']}: R² = {metrics['r2']:.4f}, "
@@ -527,22 +527,22 @@ class RegressionOptimizer:
             }
     
     def _save_hyperopt_result(self, result):
-        """保存Hyperopt单次迭代结果"""
-        # 准备数据行
+        """Save Hyperopt single iteration result"""
+        # Prepare data row
         row = {
             'iteration': result['iteration'],
             'loss': result['loss'],
             'train_time': result['train_time']
         }
         
-        # 添加超参数
+        # Add hyperparameters
         for key, value in result['params'].items():
             if isinstance(value, (int, float, str, bool)):
                 row[f'param_{key}'] = value
             else:
                 row[f'param_{key}'] = str(value)
         
-        # 添加评价指标
+        # Add evaluation metrics
         metrics = result['metrics']
         row.update({
             'test_mse': metrics.get('mse', np.nan),
@@ -554,30 +554,30 @@ class RegressionOptimizer:
             'test_spearman': metrics.get('spearman', np.nan)
         })
         
-        # 保存到CSV
+        # Save to CSV
         file_path = os.path.join(self.dirs['hyperopt'], 'hyperopt_results.csv')
         
-        # 如果是第一次，创建文件并写入表头
+            # If first time, create file and write header
         if not os.path.exists(file_path):
             df = pd.DataFrame([row])
             df.to_csv(file_path, index=False, encoding='utf-8-sig')
         else:
-            # 追加数据
+            # Append data
             df = pd.read_csv(file_path)
             df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
             df.to_csv(file_path, index=False, encoding='utf-8-sig')
     
     def hyperopt_optimization(self, max_evals=100):
-        """执行Hyperopt超参数优化"""
+        """Run Hyperopt hyperparameter optimization"""
         logger.info(f"开始Hyperopt超参数优化，最大迭代次数: {max_evals}")
         
-        # 定义搜索空间
+        # Define search space
         search_space = self._define_search_space()
         
-        # 初始化Trials对象
+        # Initialize Trials object
         self.trials = Trials()
         
-        # 创建自定义的随机状态对象
+        # Create custom random state object
         class CompatibleRandomState:
             def __init__(self, seed=None):
                 self.rng = np.random.default_rng(seed)
@@ -594,10 +594,10 @@ class RegressionOptimizer:
             def integers(self, *args, **kwargs):
                 return self.rng.integers(*args, **kwargs)
         
-        # 创建兼容的随机状态
+        # Create compatible random state
         rstate = CompatibleRandomState(self.random_state)
         
-        # 运行Hyperopt优化
+        # Run Hyperopt optimization
         best = fmin(
             fn=self._objective,
             space=search_space,
@@ -608,28 +608,28 @@ class RegressionOptimizer:
             verbose=0
         )
         
-        # 获取最佳参数
+        # Get best parameters
         self.best_params = space_eval(search_space, best)
         
-        # 获取最佳得分
+        # Get best score
         successful_trials = [trial for trial in self.trials.trials if trial['result']['status'] == STATUS_OK]
         if not successful_trials:
             raise ValueError("所有试验都失败了，请检查日志")
         
         best_trial_idx = np.argmin([trial['result']['loss'] for trial in successful_trials])
         best_trial = successful_trials[best_trial_idx]
-        self.best_score = -best_trial['result']['loss']  # 负的loss就是R²
+        self.best_score = -best_trial['result']['loss']  # negative loss is R²
         
         logger.info(f"Hyperopt优化完成，最佳R²: {self.best_score:.4f}")
         logger.info(f"最佳参数: {self.best_params}")
         
-        # 保存优化结果摘要
+        # Save optimization summary
         self._save_hyperopt_summary()
         
         return self.best_params, self.best_score
     
     def _save_hyperopt_summary(self):
-        """保存Hyperopt优化结果摘要"""
+        """Save Hyperopt optimization summary"""
         summary = {
             'project_name': self.project_name,
             'model_name': self.model_name,
@@ -642,14 +642,14 @@ class RegressionOptimizer:
             'optimization_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
         
-        # 保存为JSON
+        # Save as JSON
         summary_file = os.path.join(self.dirs['hyperopt'], 'hyperopt_summary.json')
         with open(summary_file, 'w', encoding='utf-8') as f:
             json.dump(summary, f, indent=4, ensure_ascii=False)
         
         logger.info(f"Hyperopt摘要已保存到: {summary_file}")
         
-        # 保存最佳参数到CSV
+        # Save best parameters to CSV
         best_params_dict = {}
         for key, value in self.best_params.items():
             if isinstance(value, (int, float, str, bool)):
@@ -663,13 +663,13 @@ class RegressionOptimizer:
         logger.info(f"最佳参数已保存到: {best_params_file}")
     
     def train_best_model(self):
-        """使用最佳参数训练最终模型"""
+        """Train final model with best parameters"""
         logger.info("使用最佳参数训练最终模型...")
         
         if self.best_params is None:
             raise ValueError("请先运行hyperopt_optimization获取最佳参数")
         
-        # 提取模型参数
+        # Extract model parameters
         n_estimators_list = []
         max_depth_list = []
         learning_rate_list = []
@@ -691,14 +691,14 @@ class RegressionOptimizer:
             min_child_weight_list.append(int(self.best_params.get(f'min_child_weight_{i}', 1)))
             gamma_list.append(self.best_params.get(f'gamma_{i}', 0))
         
-        # 计算权重
+        # Calculate weights
         weights = None
         if self.best_params.get('voting_method') == 'average':
             weights = []
             for i in range(self.n_models - 1):
                 weights.append(self.best_params.get(f'weight_{i}', 1.0/self.n_models))
             
-            # 计算最后一个权重
+            # Calculate last weight
             weight_sum = sum(weights)
             if weight_sum > 1.0:
                 weights = [w / weight_sum for w in weights]
@@ -708,7 +708,7 @@ class RegressionOptimizer:
             
             weights.append(last_weight)
         
-        # 创建最佳模型
+        # Create best model
         self.best_model = VotingXGBRegressor(
             n_models=self.n_models,
             n_estimators_list=n_estimators_list,
@@ -726,10 +726,10 @@ class RegressionOptimizer:
             n_jobs=self.available_cpus
         )
         
-        # 训练模型
+        # Train model
         self.best_model.fit(self.X_train, self.y_train)
         
-        # 在测试集上评估
+        # Evaluate on test set
         y_pred = self.best_model.predict(self.X_test)
         n_samples = len(self.y_test)
         n_features = self.X_train.shape[1]
@@ -737,19 +737,19 @@ class RegressionOptimizer:
             self.y_test, y_pred, n_features, n_samples
         )
         
-        # 保存模型
+        # Save model
         model_file = os.path.join(self.dirs['best'], 'best_model.joblib')
         joblib.dump(self.best_model, model_file)
         logger.info(f"最佳模型已保存到: {model_file}")
         
-        # 保存测试结果
+        # Save test results
         self._save_test_results(metrics)
         
         return self.best_model, metrics
     
     def _save_test_results(self, metrics):
-        """保存测试集结果"""
-        # 创建结果DataFrame
+        """Save test set results"""
+        # Create results DataFrame
         results_df = pd.DataFrame([{
             'test_mse': metrics['mse'],
             'test_rmse': metrics['rmse'],
@@ -760,23 +760,23 @@ class RegressionOptimizer:
             'test_spearman': metrics['spearman']
         }])
         
-        # 保存到CSV
+        # Save to CSV
         results_file = os.path.join(self.dirs['best'], 'best_model_test_results.csv')
         results_df.to_csv(results_file, index=False, encoding='utf-8-sig')
         logger.info(f"最佳模型测试结果已保存到: {results_file}")
         
-        # 同时保存到results目录
+        # Also save to results directory
         results_file2 = os.path.join(self.dirs['results'], 'best_model_test_results.csv')
         results_df.to_csv(results_file2, index=False, encoding='utf-8-sig')
     
     def cross_validation(self):
-        """对最佳模型进行K折交叉验证"""
+        """K-fold cross-validation on the best model"""
         logger.info(f"开始{self.cv_folds}折交叉验证...")
         
         if self.best_params is None:
             raise ValueError("请先运行train_best_model训练最佳模型")
         
-        # 提取模型参数
+        # Extract model parameters
         n_estimators_list = []
         max_depth_list = []
         learning_rate_list = []
@@ -798,7 +798,7 @@ class RegressionOptimizer:
             min_child_weight_list.append(int(self.best_params.get(f'min_child_weight_{i}', 1)))
             gamma_list.append(self.best_params.get(f'gamma_{i}', 0))
         
-        # 计算权重
+        # Calculate weights
         weights = None
         if self.best_params.get('voting_method') == 'average':
             weights = []
@@ -814,23 +814,23 @@ class RegressionOptimizer:
             
             weights.append(last_weight)
         
-        # 准备交叉验证
+        # Prepare cross-validation
         kf = KFold(n_splits=self.cv_folds, shuffle=True, random_state=self.random_state)
         
-        # 存储每折的结果
+        # Store results for each fold
         fold_results = []
         fold_metrics = []
         
         for fold, (train_idx, val_idx) in enumerate(kf.split(self.X_train)):
             logger.info(f"处理第 {fold+1}/{self.cv_folds} 折")
             
-            # 划分训练集和验证集
+            # Split into training and validation sets
             X_train_fold = self.X_train[train_idx]
             y_train_fold = self.y_train[train_idx]
             X_val_fold = self.X_train[val_idx]
             y_val_fold = self.y_train[val_idx]
             
-            # 创建模型（使用最佳参数）
+            # Create model (with best params)
             model = VotingXGBRegressor(
                 n_models=self.n_models,
                 n_estimators_list=n_estimators_list,
@@ -848,20 +848,20 @@ class RegressionOptimizer:
                 n_jobs=self.available_cpus
             )
             
-            # 训练模型
+            # Train model
             model.fit(X_train_fold, y_train_fold)
             
-            # 在验证集上预测
+            # Predict on validation set
             y_val_pred = model.predict(X_val_fold)
             
-            # 计算评价指标
+            # Calculate evaluation metrics
             n_samples = len(y_val_fold)
             n_features = X_train_fold.shape[1]
             metrics = RegressionMetrics.calculate_all_metrics(
                 y_val_fold, y_val_pred, n_features, n_samples
             )
             
-            # 保存每折结果
+            # Save per-fold results
             fold_result = {
                 'fold': fold + 1,
                 'train_samples': len(train_idx),
@@ -871,20 +871,20 @@ class RegressionOptimizer:
             fold_results.append(fold_result)
             fold_metrics.append(metrics)
             
-            # 保存每折的详细结果
+            # Save detailed per-fold results
             self._save_fold_results(fold, fold_result)
         
-        # 计算平均指标
+        # Calculate average metrics
         avg_metrics = self._calculate_average_metrics(fold_metrics)
         
-        # 保存交叉验证结果
+        # Save cross-validation results
         self._save_cv_results(fold_results, avg_metrics)
         
         return fold_results, avg_metrics
     
     def _save_fold_results(self, fold, fold_result):
-        """保存单折交叉验证结果"""
-        # 创建结果DataFrame
+        """Save single fold cross-validation result"""
+        # Create results DataFrame
         results_df = pd.DataFrame([{
             'fold': fold_result['fold'],
             'train_samples': fold_result['train_samples'],
@@ -898,15 +898,15 @@ class RegressionOptimizer:
             'spearman': fold_result['spearman']
         }])
         
-        # 保存到CSV
+        # Save to CSV
         fold_file = os.path.join(self.dirs['cv'], f'fold_{fold+1}_results.csv')
         results_df.to_csv(fold_file, index=False, encoding='utf-8-sig')
     
     def _calculate_average_metrics(self, fold_metrics):
-        """计算平均指标"""
+        """Calculate average metrics"""
         avg_metrics = {}
         
-        # 所有需要平均的指标
+        # All metrics to average
         metric_keys = ['mse', 'rmse', 'mae', 'r2', 'adjusted_r2', 'pearson', 'spearman']
         
         for key in metric_keys:
@@ -921,60 +921,60 @@ class RegressionOptimizer:
         return avg_metrics
     
     def _save_cv_results(self, fold_results, avg_metrics):
-        """保存交叉验证结果"""
-        # 保存所有折的详细结果
+        """Save cross-validation results"""
+        # Save detailed results for all folds
         all_folds_df = pd.DataFrame(fold_results)
         all_folds_file = os.path.join(self.dirs['cv'], 'all_folds_results.csv')
         all_folds_df.to_csv(all_folds_file, index=False, encoding='utf-8-sig')
         logger.info(f"所有折的详细结果已保存到: {all_folds_file}")
         
-        # 保存平均结果
+        # Save average results
         avg_results_df = pd.DataFrame([avg_metrics])
         avg_results_file = os.path.join(self.dirs['cv'], 'cv_average_results.csv')
         avg_results_df.to_csv(avg_results_file, index=False, encoding='utf-8-sig')
         logger.info(f"交叉验证平均结果已保存到: {avg_results_file}")
         
-        # 同时保存到results目录
+        # Also save to results directory
         results_file = os.path.join(self.dirs['results'], 'cv_average_results.csv')
         avg_results_df.to_csv(results_file, index=False, encoding='utf-8-sig')
     
     def run_pipeline(self):
-        """运行完整的优化流程"""
-        # 记录开始时间
+        """Run the full optimization pipeline"""
+        # Record start time
         self.start_time = time.time()
         logger.info("=" * 60)
         logger.info("开始回归模型优化流程")
         logger.info("=" * 60)
         
         try:
-            # 1. 加载数据
+            # 1. Load data
             self.load_data()
             
-            # 2. 数据预处理
+            # 2. Preprocess data
             self.preprocess_data(scale_features=True, scale_labels=False)
             
-            # 3. Hyperopt超参数优化
+            # 3. Hyperopt optimization
             logger.info("\n" + "=" * 60)
             logger.info("步骤1: Hyperopt超参数优化")
             logger.info("=" * 60)
             best_params, best_score = self.hyperopt_optimization(max_evals=self.n_iter)
             
-            # 4. 训练最佳模型
+            # 4. Train best model
             logger.info("\n" + "=" * 60)
             logger.info("步骤2: 训练最佳模型")
             logger.info("=" * 60)
             best_model, test_metrics = self.train_best_model()
             
-            # 5. 交叉验证
+            # 5. Cross-validation
             logger.info("\n" + "=" * 60)
             logger.info("步骤3: 交叉验证")
             logger.info("=" * 60)
             fold_results, avg_metrics = self.cross_validation()
             
-            # 6. 生成最终报告
+            # 6. Generate final report
             self._generate_final_report(test_metrics, avg_metrics)
             
-            # 记录结束时间
+            # Record end time
             self.end_time = time.time()
             self.total_time = self.end_time - self.start_time
             
@@ -982,20 +982,20 @@ class RegressionOptimizer:
             logger.info("优化流程完成!")
             logger.info("=" * 60)
             
-            # 输出总结信息
+            # Output summary
             self._print_summary(best_params, test_metrics)
             
             return best_model, best_params, test_metrics, avg_metrics
             
         except Exception as e:
-            # 记录结束时间（即使出错）
+            # Record end time (even on error)
             self.end_time = time.time()
             self.total_time = self.end_time - self.start_time
             logger.error(f"优化流程出错: {e}")
             raise
     
     def _generate_final_report(self, test_metrics, avg_metrics):
-        """生成最终报告"""
+        """Generate final report"""
         report = {
             'project_name': self.project_name,
             'model_name': self.model_name,
@@ -1006,14 +1006,14 @@ class RegressionOptimizer:
             'cross_validation_performance': avg_metrics
         }
         
-        # 保存为JSON
+        # Save as JSON
         report_file = os.path.join(self.dirs['results'], 'final_report.json')
         with open(report_file, 'w', encoding='utf-8') as f:
             json.dump(report, f, indent=4, ensure_ascii=False)
         
         logger.info(f"最终报告已保存到: {report_file}")
         
-        # 创建摘要CSV
+        # Create summary CSV
         summary_data = {
             'Metric': ['MSE', 'RMSE', 'MAE', 'R²', 'Adjusted R²', 'Pearson', 'Spearman'],
             'Test_Set': [
@@ -1051,12 +1051,12 @@ class RegressionOptimizer:
         logger.info(f"性能摘要已保存到: {summary_file}")
     
     def _print_summary(self, best_params, test_metrics):
-        """输出总结信息"""
+        """Output summary information"""
         print("\n" + "="*80)
         print("回归模型优化总结")
         print("="*80)
         
-        # 1. 执行时间
+        # 1. Execution time
         print(f"\n1. 执行时间统计:")
         print(f"   总耗时: {self.total_time:.2f} 秒 ({self.total_time/60:.2f} 分钟)")
         if self.start_time and self.end_time:
@@ -1065,20 +1065,20 @@ class RegressionOptimizer:
             print(f"   开始时间: {start_str}")
             print(f"   结束时间: {end_str}")
         
-        # 2. 硬件信息
+        # 2. Hardware info
         print(f"\n2. 硬件使用情况:")
         print(f"   系统CPU核心数: {self.total_cpus}")
         print(f"   使用线程数: {self.available_cpus} (限制: {self.max_threads_percent}%)")
         print(f"   使用XGBoost模型数量: {self.n_models} 个")
         
-        # 3. 项目信息
+        # 3. Project info
         print(f"\n3. 项目信息:")
         print(f"   项目名称: {self.project_name}")
         print(f"   模型类型: {self.model_name}")
         print(f"   Hyperopt迭代次数: {self.n_iter}")
         print(f"   交叉验证折数: {self.cv_folds}")
         
-        # 4. 最佳超参数
+        # 4. Best hyperparameters
         print(f"\n4. 最佳模型超参数:")
         
         # 计算权重
@@ -1107,7 +1107,7 @@ class RegressionOptimizer:
             for i, weight in enumerate(weights):
                 print(f"   模型{i+1}权重: {weight:.4f}")
         
-        # 5. 独立测试结果
+        # 5. Independent test results
         print(f"\n5. 最佳模型独立测试结果:")
         print(f"   R²: {test_metrics['r2']:.6f}")
         print(f"   调整后R²: {test_metrics.get('adjusted_r2', 'N/A')}")
@@ -1117,7 +1117,7 @@ class RegressionOptimizer:
         print(f"   皮尔逊相关系数: {test_metrics.get('pearson', 'N/A'):.6f}")
         print(f"   斯皮尔曼相关系数: {test_metrics.get('spearman', 'N/A'):.6f}")
         
-        # 6. 文件保存位置
+        # 6. File save locations
         print(f"\n6. 结果文件保存位置:")
         print(f"   最佳模型: {self.dirs['best']}/best_model.joblib")
         print(f"   特征标准化模型: {self.dirs['scaler']}/feature_scaler.joblib")
@@ -1128,7 +1128,7 @@ class RegressionOptimizer:
         
         print("\n" + "="*80)
         
-        # 同时记录到日志
+        # Also log to file
         logger.info("\n" + "="*80)
         logger.info("回归模型优化总结")
         logger.info("="*80)
@@ -1140,10 +1140,10 @@ class RegressionOptimizer:
 
 
 def main():
-    """主函数"""
+    """Main function"""
     parser = argparse.ArgumentParser(description='回归模型优化管道')
     
-    # 必需参数
+    # Required arguments
     parser.add_argument('--project', type=str, required=True,
                        help='项目名称，用于创建目录')
     parser.add_argument('--train', type=str, required=True,
@@ -1153,7 +1153,7 @@ def main():
     parser.add_argument('--prefix', type=str, required=True,
                        help='保存文件的前缀名称')
     
-    # 可选参数
+    # Optional arguments
     parser.add_argument('--model', type=str, default='voting_xgb',
                        help='模型类型 (默认: voting_xgb)')
     parser.add_argument('--kfold', type=int, default=5,
@@ -1171,7 +1171,7 @@ def main():
     
     args = parser.parse_args()
     
-    # 验证模型数量
+        # Validate number of models
     if args.n_models < 2 or args.n_models > 9:
         print(f"警告: 模型数量 {args.n_models} 不在有效范围内 (2-9)，将使用默认值 3")
         args.n_models = 3
@@ -1189,7 +1189,7 @@ def main():
         n_models=args.n_models
     )
     
-    # 运行完整流程
+        # Run full pipeline
     try:
         best_model, best_params, test_metrics, avg_metrics = optimizer.run_pipeline()
         
@@ -1199,7 +1199,7 @@ def main():
 
 
 if __name__ == "__main__":
-    # 示例运行命令:
+    # Example run command:
     # python regression_optimizer.py --project my_regression_project --train train.csv --test test.csv --prefix my_model --model voting_xgb --kfold 5 --n_iter 50 --random_state 42 --max_threads_percent 80 --n_models 5
     
     main()
